@@ -1,0 +1,9 @@
+# SnapShrink — robots.txt
+# A private, browser-based image converter, compressor and resizer.
+
+User-agent: *
+Allow: /
+
+# No crawl-delay needed: the site is fully static.
+
+Sitemap: https://lkj-droid.github.io/snapshrink/sitemap.xml

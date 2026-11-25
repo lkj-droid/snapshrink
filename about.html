@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About SnapShrink — a zero-upload image converter</title>
+<meta name="description" content="Why SnapShrink exists, how the browser-based image pipeline works, and what the tool can and cannot do.">
+<link rel="canonical" href="https://lkj-droid.github.io/snapshrink/about.html">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#070c16">
+<meta property="og:type" content="website">
+<meta property="og:title" content="About SnapShrink">
+<meta property="og:description" content="A small, fast, completely private image converter that runs in your browser.">
+<meta property="og:url" content="https://lkj-droid.github.io/snapshrink/about.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem('snapshrink-theme');
+      if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+      else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="./" aria-label="SnapShrink home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="30" height="30" fill="none">
+          <rect x="1.5" y="1.5" width="29" height="29" rx="9" stroke="url(#g1)" stroke-width="2.4"/>
+          <path d="M9 21.5 14 12l3.4 6.2 2.1-3.4 3.5 6.7" stroke="url(#g1)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="21.5" cy="10.5" r="1.9" fill="#34d399"/>
+          <defs><linearGradient id="g1" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#34d399"/><stop offset=".55" stop-color="#38bdf8"/><stop offset="1" stop-color="#a78bfa"/>
+          </linearGradient></defs>
+        </svg>
+      </span>
+      <span class="brand-text">Snap<span>Shrink</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html#tool">Converter</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to the converter</a>
+    <h1>About SnapShrink</h1>
+    <p class="updated">Last updated: 26 November 2026</p>
+
+    <p class="lede">SnapShrink is a one-page utility for the tedious part of publishing images: getting them small enough, in the right format, and at the right dimensions — without handing a folder of personal photos to a stranger's server.</p>
+
+    <h2>Why another image converter?</h2>
+    <p>Search for “compress image” and nearly every result asks you to upload your files. That is fine for a stock photo and less fine for a passport scan, a receipt, a screenshot of a private chat, or the photos from a family event. Those services also tend to add watermarks, cap batch sizes, or slow you down with a queue.</p>
+    <p>The browser has been able to decode and re-encode images locally for years. SnapShrink is simply that capability arranged into a competent interface: batch input, format choice, a quality slider that updates real file sizes as you move it, resize presets for the platforms people actually publish to, and one ZIP at the end.</p>
+
+    <h2>How it is built</h2>
+    <ul>
+      <li><strong>No framework, no build step.</strong> Three static files — HTML, CSS and one JavaScript file — served from GitHub Pages.</li>
+      <li><strong>Decoding</strong> uses <code>createImageBitmap</code> with the <code>from-image</code> orientation option, falling back to an <code>&lt;img&gt;</code> element. This is what applies EXIF rotation correctly.</li>
+      <li><strong>Resizing</strong> draws onto a canvas with progressive halving, which keeps downscaled photographs sharp instead of soft.</li>
+      <li><strong>Encoding</strong> uses <code>canvas.toBlob()</code> with the chosen MIME type and quality. WebP availability is detected at runtime, and the interface falls back to JPEG if a browser cannot produce it.</li>
+      <li><strong>ZIP</strong> is written by about a hundred lines of JavaScript (CRC-32 plus stored entries), so there is no CDN, no external library, and nothing to break offline.</li>
+      <li><strong>Privacy</strong> is a property of the architecture, not a policy: the page makes no requests after loading, apart from optional advertising if it is switched on.</li>
+    </ul>
+
+    <h2>What it does well</h2>
+    <ul>
+      <li>Screenshots, UI mockups and flat graphics: PNG to WebP at 80% typically saves 70–90%.</li>
+      <li>Phone photos for the web: resize to a 1920px maximum width and export WebP for fast pages.</li>
+      <li>Thumbnails: 1280×720 and 1080×1080 presets crop to exact platform dimensions.</li>
+      <li>Email and forms that only accept JPEG: convert and flatten transparency onto white in one step.</li>
+    </ul>
+
+    <h2>What it does not do</h2>
+    <ul>
+      <li>Animated GIF or animated WebP output — canvas encoding produces still images, so only the first frame is converted.</li>
+      <li>HEIC/HEIF input — browsers do not decode it in canvas. Export as JPEG from the Photos app first.</li>
+      <li>Metadata editing, watermarking, or colour-profile conversion beyond what the browser does by default.</li>
+      <li>Server-side processing for extremely large files. Everything runs in your device's memory, which is both the privacy guarantee and the practical ceiling.</li>
+    </ul>
+
+    <h2>Who made it</h2>
+    <p>SnapShrink is an independent side project, published openly so anyone can read the code, fork it, or host their own copy. The source lives at <a href="https://github.com/lkj-droid/snapshrink" rel="noopener" target="_blank">github.com/lkj-droid/snapshrink</a>.</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-text small">Snap<span>Shrink</span></span>
+      <p>A private image converter, compressor and resizer that runs entirely in your browser.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="index.html#tool">Converter</a>
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="about.html">About</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </nav>
+  </div>
+  <div class="wrap footer-bottom">
+    <p>© <span class="js-year">2026</span> SnapShrink. Made for people who would rather not hand over their photos.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('.js-year').forEach(function(e){e.textContent=new Date().getFullYear();});</script>
+</body>
+</html>
