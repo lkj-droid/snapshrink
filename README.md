@@ -13,7 +13,7 @@ Live: <https://lkj-droid.github.io/snapshrink/>
 - **Batch input** — drag & drop, file picker, clipboard paste, or ⌘/Ctrl+O. PNG, JPEG, WebP, GIF and BMP, up to 40 files per batch.
 - **Output formats** — WebP (default), JPEG, PNG, with runtime detection of WebP encoding support and a JPEG fallback.
 - **Quality slider (10–100%)** — every image is re-encoded live, with per-image before/after size and a savings badge.
-- **Resize presets** — original, max width 1920 px / 1080 px, YouTube thumbnail 1280×720, square 1080×1080, or a custom width/size with aspect-ratio lock and crop-to-fill / fit-inside modes.
+- **Resize presets** — original, max width 1920 px / 1080 px, or a fixed box with aspect-ratio lock and crop-to-fill / fit-inside modes. Built-in platform sizes: YouTube thumbnail 1280×720, Instagram post 1080×1080, Instagram story 1080×1920, X post 1600×900, link preview (OG) 1200×630, Pinterest pin 1000×1500 and app icon 512×512 — each also available as a one-click card in the “Platform sizes” section.
 - **Downloads** — one file at a time, or every result in a ZIP assembled by a built-in ~100-line ZIP writer (CRC-32, stored entries, no CDN).
 - **Privacy by architecture** — no upload endpoint, no analytics, no external requests. Image data never leaves the tab.
 - **Accessible, responsive UI** — dark and light themes (system preference, remembered), keyboard support, ARIA live regions, 390 px phone through 1440 px desktop.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SnapShrink — Convert, Compress &amp; Resize Images in Your Browser (100% Private)</title>
-<meta name="description" content="Free online image converter, compressor and resizer. Convert PNG, JPG, WebP, GIF and BMP to WebP, JPEG or PNG, compress with a live quality slider and resize for social media — 100% in your browser, zero uploads.">
+<meta name="description" content="Free online image converter, compressor and resizer. Convert PNG, JPG, WebP, GIF and BMP to WebP, JPEG or PNG, compress with a live quality slider and resize for Instagram, YouTube, X, Pinterest or a link preview — 100% in your browser, zero uploads.">
 <meta name="keywords" content="image converter, image compressor, resize image, png to webp, jpg to webp, compress image online, image resizer, private image converter, no upload">
 <meta name="author" content="SnapShrink">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -60,6 +60,7 @@
     "Batch image conversion to WebP, JPEG and PNG",
     "Quality slider with live file size comparison",
     "Quick resize presets and custom dimensions",
+    "Built-in platform sizes: YouTube thumbnail 1280×720, Instagram post and story, X post 1600×900, link preview 1200×630, Pinterest pin 1000×1500 and a 512×512 app icon",
     "Download all results as a ZIP archive",
     "No uploads — all processing happens in the browser"
   ]
@@ -86,6 +87,7 @@
     </a>
     <nav class="site-nav" aria-label="Site">
       <a href="#how">How it works</a>
+      <a href="#sizes">Sizes</a>
       <a href="#faq">FAQ</a>
       <a href="about.html">About</a>
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme">
@@ -217,12 +219,23 @@
             <label for="preset">Resize</label>
             <div class="select-wrap">
               <select id="preset">
-                <option value="original">Original size</option>
-                <option value="max1920">Max width · 1920px</option>
-                <option value="max1080">Max width · 1080px</option>
-                <option value="yt">YouTube thumbnail · 1280×720</option>
-                <option value="square">Square · 1080×1080</option>
-                <option value="custom">Custom size…</option>
+                <optgroup label="Size rules">
+                  <option value="original">Original size</option>
+                  <option value="max1920">Max width · 1920px</option>
+                  <option value="max1080">Max width · 1080px</option>
+                </optgroup>
+                <optgroup label="Platform sizes">
+                  <option value="yt">YouTube thumbnail · 1280×720</option>
+                  <option value="square">Instagram post · 1080×1080</option>
+                  <option value="story">Instagram story · 1080×1920</option>
+                  <option value="xpost">X post · 1600×900</option>
+                  <option value="og">Link preview (OG) · 1200×630</option>
+                  <option value="pin">Pinterest pin · 1000×1500</option>
+                  <option value="icon">App icon · 512×512</option>
+                </optgroup>
+                <optgroup label="Exact size">
+                  <option value="custom">Custom size…</option>
+                </optgroup>
               </select>
               <svg class="select-caret" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </div>
@@ -313,6 +326,57 @@
     </ol>
   </section>
 
+  <section class="wrap section" id="sizes">
+    <h2>Platform sizes, one click each</h2>
+    <p class="section-lede">Pick a card and the converter opens with that exact size loaded — crop to fill or fit inside, then download.</p>
+    <div class="sizes">
+      <button class="size-card" type="button" data-preset="yt" aria-pressed="false">
+        <span class="size-name">YouTube thumbnail</span>
+        <span class="size-dims">1280 × 720</span>
+        <span class="size-note">16:9 landscape, the size YouTube asks for when you upload a thumbnail</span>
+      </button>
+      <button class="size-card" type="button" data-preset="square" aria-pressed="false">
+        <span class="size-name">Instagram post</span>
+        <span class="size-dims">1080 × 1080</span>
+        <span class="size-note">1:1 square for the feed — the shape that never gets cropped</span>
+      </button>
+      <button class="size-card" type="button" data-preset="story" aria-pressed="false">
+        <span class="size-name">Instagram story &amp; Reel cover</span>
+        <span class="size-dims">1080 × 1920</span>
+        <span class="size-note">9:16 vertical for stories, Reels covers and phone screens</span>
+      </button>
+      <button class="size-card" type="button" data-preset="xpost" aria-pressed="false">
+        <span class="size-name">X (Twitter) post</span>
+        <span class="size-dims">1600 × 900</span>
+        <span class="size-note">16:9 image that fills the timeline without being cut off</span>
+      </button>
+      <button class="size-card" type="button" data-preset="og" aria-pressed="false">
+        <span class="size-name">Link preview / Open Graph</span>
+        <span class="size-dims">1200 × 630</span>
+        <span class="size-note">The thumbnail shown when a link is shared on social apps and chat</span>
+      </button>
+      <button class="size-card" type="button" data-preset="pin" aria-pressed="false">
+        <span class="size-name">Pinterest pin</span>
+        <span class="size-dims">1000 × 1500</span>
+        <span class="size-note">2:3 portrait, the shape Pinterest lays out in columns</span>
+      </button>
+      <button class="size-card" type="button" data-preset="icon" aria-pressed="false">
+        <span class="size-name">App icon &amp; favicon</span>
+        <span class="size-dims">512 × 512</span>
+        <span class="size-note">The size requested for installable web apps and high-DPI favicons</span>
+      </button>
+      <button class="size-card" type="button" data-preset="custom" aria-pressed="false">
+        <span class="size-name">Anything else</span>
+        <span class="size-dims">Your own size</span>
+        <span class="size-note">Type the exact width and height — turn the aspect lock off for a fixed box</span>
+      </button>
+    </div>
+    <p class="sizes-foot">
+      These are the still-image sizes the platforms themselves ask for. They revise their guidelines from time to time, so
+      if a specific uploader wants something else, choose <a href="#tool">Custom size</a> and type the exact pixels.
+    </p>
+  </section>
+
   <section class="wrap section">
     <h2>Why people use SnapShrink</h2>
     <div class="features">
@@ -363,6 +427,10 @@
         <p>They are removed. Re-encoding through canvas keeps only the pixels, which is usually what you want for sharing — and it means photos you post won't carry GPS coordinates. The trade-off is that camera settings and rotation tags are not carried over; SnapShrink applies the correct orientation to the pixels before saving.</p>
       </details>
       <details>
+        <summary>Which platform sizes are built in?</summary>
+        <p>YouTube thumbnail 1280×720, Instagram post 1080×1080, Instagram story and Reel cover 1080×1920, X post 1600×900, link preview (Open Graph) 1200×630, Pinterest pin 1000×1500 and app icon 512×512. Each one crops to fill or fits the image inside with a background colour, and anything else can be typed into Custom size.</p>
+      </details>
+      <details>
         <summary>Is there a file size or count limit?</summary>
         <p>There is no server limit, but your device's memory is the real ceiling. 40 images per batch is a comfortable number on a phone; very large images (above roughly 40 megapixels) may be rejected by the browser's canvas.</p>
       </details>
@@ -395,6 +463,7 @@
     <nav class="footer-nav" aria-label="Footer">
       <a href="#tool">Converter</a>
       <a href="#how">How it works</a>
+      <a href="#sizes">Sizes</a>
       <a href="#faq">FAQ</a>
       <a href="about.html">About</a>
       <a href="privacy.html">Privacy</a>
@@ -440,6 +509,11 @@
       "@type": "Question",
       "name": "What happens to EXIF data and GPS location?",
       "acceptedAnswer": { "@type": "Answer", "text": "They are removed. Re-encoding through canvas keeps only the pixels, so photos you share do not carry GPS coordinates, while the correct orientation is applied to the pixels first." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which platform sizes are built in?",
+      "acceptedAnswer": { "@type": "Answer", "text": "YouTube thumbnail 1280x720, Instagram post 1080x1080, Instagram story and Reel cover 1080x1920, X post 1600x900, link preview (Open Graph) 1200x630, Pinterest pin 1000x1500 and app icon 512x512. Anything else can be typed into Custom size." }
     },
     {
       "@type": "Question",

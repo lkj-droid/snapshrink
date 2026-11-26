@@ -23,6 +23,18 @@
   var MIME = { webp: 'image/webp', jpeg: 'image/jpeg', png: 'image/png' };
   var EXT = { webp: 'webp', jpeg: 'jpg', png: 'png' };
   var QUALITY_FORMATS = { webp: true, jpeg: true, png: false };
+
+  // Fixed-size presets. One entry per platform size the UI offers, so adding
+  // another is a single line here plus an <option> in index.html.
+  var PRESETS = {
+    yt: { w: 1280, h: 720, label: 'YouTube thumbnail 1280×720' },
+    square: { w: 1080, h: 1080, label: 'Instagram post 1080×1080' },
+    story: { w: 1080, h: 1920, label: 'Instagram story 1080×1920' },
+    xpost: { w: 1600, h: 900, label: 'X post 1600×900' },
+    og: { w: 1200, h: 630, label: 'Link preview 1200×630' },
+    pin: { w: 1000, h: 1500, label: 'Pinterest pin 1000×1500' },
+    icon: { w: 512, h: 512, label: 'App icon 512×512' }
+  };
   var MAX_FILES = 40;
   var MAX_DIM = 16384;
   var MAX_PIXELS = 120000000; // 120 MP guard, well under canvas limits on most devices
@@ -273,18 +285,17 @@
   /* ------------------------------------------------------------- 5. Geometry */
 
   function presetLabel() {
+    if (PRESETS[state.preset]) return PRESETS[state.preset].label;
     switch (state.preset) {
       case 'max1920': return 'Max width 1920px';
       case 'max1080': return 'Max width 1080px';
-      case 'yt': return 'YouTube thumbnail 1280×720';
-      case 'square': return 'Square 1080×1080';
       case 'custom': return state.lockAspect ? 'Custom width' : 'Custom size';
       default: return 'Original size';
     }
   }
 
   function isFixedPreset() {
-    return state.preset === 'yt' || state.preset === 'square' || (state.preset === 'custom' && !state.lockAspect);
+    return !!PRESETS[state.preset] || (state.preset === 'custom' && !state.lockAspect);
   }
 
   /**
@@ -305,8 +316,8 @@
     }
 
     var W, H;
-    if (state.preset === 'yt') { W = 1280; H = 720; }
-    else if (state.preset === 'square') { W = 1080; H = 1080; }
+    var fixed = PRESETS[state.preset];
+    if (fixed) { W = fixed.w; H = fixed.h; }
     else {
       W = clamp(Math.round(state.customW) || 1, 1, MAX_DIM);
       if (state.lockAspect) {
@@ -924,6 +935,12 @@
     $('#customH').placeholder = state.lockAspect ? 'auto' : '';
     $('#modeRow').hidden = !isFixedPreset();
 
+    $$('.size-card').forEach(function (el) {
+      var on = el.getAttribute('data-preset') === state.preset;
+      el.classList.toggle('is-active', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+
     var note = $('#presetNote');
     if (state.preset === 'original') note.textContent = 'Keeps the original dimensions. Max-width presets never enlarge an image.';
     else if (state.preset === 'max1920' || state.preset === 'max1080') note.textContent = 'Only shrinks images wider than the limit — smaller ones stay as they are.';
@@ -1171,6 +1188,21 @@
     $('#bgColor').addEventListener('input', function (e) {
       state.bg = e.target.value;
       scheduleEncode(200);
+    });
+
+    // Platform size cards: load that size and jump to the converter
+    $$('.size-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var value = card.getAttribute('data-preset');
+        if (!value || !$('#preset').querySelector('option[value="' + value + '"]')) return;
+        state.preset = value;
+        $('#preset').value = value;
+        syncResizeUI();
+        scheduleEncode(60);
+        announce(presetLabel() + ' selected');
+        var tool = $('#tool');
+        if (tool) tool.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     });
 
     // Buttons
