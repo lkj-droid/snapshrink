@@ -518,19 +518,13 @@
     var meta = item.meta;
     var wasOpen = !!el.querySelector('.meta-details[open]');
     el.innerHTML = '';
-    if (!hasMeta(meta)) { el.hidden = true; return; }
-    if (item.status === 'error') { el.hidden = true; return; }
-
-    var tags = metaSummary(meta);
-    var out = item.metaOut;
-    var cleanOut = !!out && out.supported && !out.tagCount && !out.hasXmp && !out.hasIptc &&
-      !out.hasExifBlock && !out.textChunks;
+    el.hidden = true;
+    if (!meta || !meta.supported || item.status === 'error') return;
 
     el.hidden = false;
     el.dataset.format = meta.format;
     el.dataset.tags = String(meta.tagCount);
     el.dataset.gps = meta.gps ? '1' : '0';
-    el.dataset.clean = cleanOut ? '1' : '0';
 
     var icon = document.createElement('span');
     icon.className = 'meta-icon';
@@ -541,8 +535,21 @@
 
     var line = document.createElement('span');
     line.className = 'meta-line';
-    line.textContent = cleanOut ? tags + ' → 0 after convert' : tags;
     el.appendChild(line);
+
+    if (!hasMeta(meta)) {
+      el.dataset.clean = '0';
+      line.textContent = 'No EXIF or GPS metadata';
+      return;
+    }
+
+    var tags = metaSummary(meta);
+    var out = item.metaOut;
+    var cleanOut = !!out && out.supported && !out.tagCount && !out.hasXmp && !out.hasIptc &&
+      !out.hasExifBlock && !out.textChunks;
+    el.dataset.clean = cleanOut ? '1' : '0';
+
+    line.textContent = cleanOut ? tags + ' → 0 after convert' : tags;
 
     if (meta.gps) {
       var gpsBadge = document.createElement('span');
