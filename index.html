@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SnapShrink — Convert, Compress &amp; Resize Images in Your Browser (100% Private)</title>
-<meta name="description" content="Free online image converter, compressor and resizer. Convert PNG, JPG, WebP, GIF and BMP to WebP, JPEG or PNG, compress with a live quality slider and resize for Instagram, YouTube, X, Pinterest or a link preview — 100% in your browser, zero uploads.">
-<meta name="keywords" content="image converter, image compressor, resize image, png to webp, jpg to webp, compress image online, image resizer, private image converter, no upload">
+<meta name="description" content="Free online image converter, compressor and resizer. Convert PNG, JPG, WebP, GIF and BMP to WebP, JPEG or PNG, compress with a live quality slider, resize for Instagram, YouTube, X, Pinterest or a link preview, and see any EXIF or GPS metadata before it is stripped — 100% in your browser, zero uploads.">
+<meta name="keywords" content="image converter, image compressor, resize image, png to webp, jpg to webp, compress image online, image resizer, private image converter, no upload, exif viewer, check gps data in photo, remove metadata from image, strip exif">
 <meta name="author" content="SnapShrink">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://lkj-droid.github.io/snapshrink/">
@@ -61,6 +61,8 @@
     "Quality slider with live file size comparison",
     "Quick resize presets and custom dimensions",
     "Built-in platform sizes: YouTube thumbnail 1280×720, Instagram post and story, X post 1600×900, link preview 1200×630, Pinterest pin 1000×1500 and a 512×512 app icon",
+    "Built-in EXIF and GPS metadata inspector that reports camera, date and location tags before you convert",
+    "EXIF, GPS and XMP metadata is removed by the in-browser re-encode and the empty result is verified on each converted file",
     "Download all results as a ZIP archive",
     "No uploads — all processing happens in the browser"
   ]
@@ -158,6 +160,7 @@
             <div class="stat-arrow" aria-hidden="true">→</div>
             <div class="stat"><span class="stat-label">New size</span><span class="stat-value" id="sumAfter">—</span></div>
             <div class="stat"><span class="stat-label">Saved</span><span class="stat-value stat-save" id="sumSaved">—</span></div>
+            <p class="summary-meta" id="sumMeta" hidden></p>
           </div>
           <button class="btn btn-primary" id="downloadAllTop" type="button">
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
@@ -377,6 +380,29 @@
     </p>
   </section>
 
+  <section class="wrap section" id="metadata">
+    <h2>See the metadata your photos carry</h2>
+    <p class="section-lede">Add an image and SnapShrink reads its header in this tab: how many EXIF tags it holds, what camera took it, when, and whether GPS coordinates are embedded.</p>
+    <div class="metafacts">
+      <article class="feature">
+        <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg></div>
+        <h3>Location</h3>
+        <p>If the file carries GPS coordinates, the card marks it and the details show the latitude and longitude that would otherwise travel with the picture.</p>
+      </article>
+      <article class="feature">
+        <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="13" rx="2.5"/><circle cx="12" cy="13" r="3.6"/><path d="M8 6.5 9.5 4h5L16 6.5"/></svg></div>
+        <h3>Camera and date</h3>
+        <p>Make, model, lens, exposure settings and the moment the shutter fired — the tags most often left in a photo that ends up online.</p>
+      </article>
+      <article class="feature">
+        <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Verified removal</h3>
+        <p>After conversion the same check runs on the new file, so every card shows the tag count that went in and the zero that came out.</p>
+      </article>
+    </div>
+    <p class="metafacts-foot">The inspection is a read-only JavaScript parse of the file's own bytes — no library, no upload, nothing sent and nothing stored.</p>
+  </section>
+
   <section class="wrap section">
     <h2>Why people use SnapShrink</h2>
     <div class="features">
@@ -424,7 +450,11 @@
       </details>
       <details>
         <summary>What happens to EXIF data, GPS location and other metadata?</summary>
-        <p>They are removed. Re-encoding through canvas keeps only the pixels, which is usually what you want for sharing — and it means photos you post won't carry GPS coordinates. The trade-off is that camera settings and rotation tags are not carried over; SnapShrink applies the correct orientation to the pixels before saving.</p>
+        <p>SnapShrink reads it first and removes it on conversion. As soon as a file is added, the card reports how many EXIF tags it contains, the camera and date, and whether GPS coordinates are embedded — expand the note to see the values. Re-encoding through canvas keeps only the pixels, so the converted file has none of it, and SnapShrink checks the result to confirm. The trade-off is that camera settings and rotation tags are not carried over; SnapShrink applies the correct orientation to the pixels before saving.</p>
+      </details>
+      <details>
+        <summary>Can I check a photo for GPS data before I share it?</summary>
+        <p>Yes. Pick the file and its header is parsed in your browser, before anything is converted: the card shows the EXIF tag count and a GPS location badge, and the details list the coordinates, camera model and capture date inside the file. Convert it and the same check runs again on the output, so you can see the tags drop to zero instead of taking it on trust.</p>
       </details>
       <details>
         <summary>Which platform sizes are built in?</summary>
@@ -464,6 +494,7 @@
       <a href="#tool">Converter</a>
       <a href="#how">How it works</a>
       <a href="#sizes">Sizes</a>
+      <a href="#metadata">Metadata</a>
       <a href="#faq">FAQ</a>
       <a href="about.html">About</a>
       <a href="privacy.html">Privacy</a>
@@ -507,8 +538,13 @@
     },
     {
       "@type": "Question",
-      "name": "What happens to EXIF data and GPS location?",
-      "acceptedAnswer": { "@type": "Answer", "text": "They are removed. Re-encoding through canvas keeps only the pixels, so photos you share do not carry GPS coordinates, while the correct orientation is applied to the pixels first." }
+      "name": "What happens to EXIF data, GPS location and other metadata?",
+      "acceptedAnswer": { "@type": "Answer", "text": "SnapShrink reads it first and removes it on conversion. Each card reports the EXIF tag count, the camera and date, and whether GPS coordinates are embedded, and the details show the values. Re-encoding through canvas keeps only the pixels, so the converted file carries none of it, and the result is checked to confirm." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I check a photo for GPS data before I share it?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The file header is parsed in your browser before conversion: the card shows the EXIF tag count and a GPS location badge, and the details list the coordinates, camera model and capture date. Converting runs the same check again, so the tag count dropping to zero is visible rather than assumed." }
     },
     {
       "@type": "Question",

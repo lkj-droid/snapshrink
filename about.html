@@ -52,7 +52,7 @@
   <div class="wrap">
     <a class="back-link" href="./">← Back to the converter</a>
     <h1>About SnapShrink</h1>
-    <p class="updated">Last updated: 26 November 2026</p>
+    <p class="updated">Last updated: 27 November 2026</p>
 
     <p class="lede">SnapShrink is a one-page utility for the tedious part of publishing images: getting them small enough, in the right format, and at the right dimensions — without handing a folder of personal photos to a stranger's server.</p>
 
@@ -75,6 +75,7 @@
       <li>Screenshots, UI mockups and flat graphics: PNG to WebP at 80% typically saves 70–90%.</li>
       <li>Phone photos for the web: resize to a 1920px maximum width and export WebP for fast pages.</li>
       <li>Thumbnails and social images: the built-in platform presets (YouTube 1280×720, Instagram post and story, X 1600×900, link preview 1200×630, Pinterest 1000×1500, app icon 512×512) crop or fit to exact dimensions.</li>
+      <li>Checking a photo before it goes public: each card reports the EXIF tag count, camera, capture date and any GPS coordinates found in the header, and then confirms the converted file carries none of them.</li>
       <li>Email and forms that only accept JPEG: convert and flatten transparency onto white in one step.</li>
     </ul>
 
@@ -82,7 +83,7 @@
     <ul>
       <li>Animated GIF or animated WebP output — canvas encoding produces still images, so only the first frame is converted.</li>
       <li>HEIC/HEIF input — browsers do not decode it in canvas. Export as JPEG from the Photos app first.</li>
-      <li>Metadata editing, watermarking, or colour-profile conversion beyond what the browser does by default.</li>
+      <li>Metadata editing — SnapShrink reads and reports EXIF/GPS tags and drops them on convert, but individual tags cannot be rewritten. Watermarking and colour-profile conversion beyond the browser's default are out as well.</li>
       <li>Server-side processing for extremely large files. Everything runs in your device's memory, which is both the privacy guarantee and the practical ceiling.</li>
     </ul>
 

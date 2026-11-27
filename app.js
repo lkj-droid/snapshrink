@@ -174,6 +174,7 @@
       };
       items.push(item);
       createCard(item);
+      inspectFileMeta(item);
       return item;
     });
 
@@ -209,6 +210,391 @@
   }
 
   var decodeQueue = Promise.resolve();
+
+  /* ------------------------------------------------ 3b. Metadata inspector
+     Reads the header of the file the user just picked, in this tab, and
+     reports the EXIF/GPS tags inside it. Nothing is sent anywhere — it is the
+     same bytes the decoder reads. The same parser runs again on the converted
+     blob, so "0 tags after convert" is measured rather than assumed. */
+
+  var META_SCAN_LIMIT = 16 * 1024 * 1024; // headers sit at the front of every format
+  var TIFF_SIZES = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8 };
+
+  function readU16(b, i, little) {
+    if (i < 0 || i + 2 > b.length) return 0;
+    return little ? (b[i] | (b[i + 1] << 8)) : ((b[i] << 8) | b[i + 1]);
+  }
+
+  function readU32(b, i, little) {
+    if (i < 0 || i + 4 > b.length) return 0;
+    return little
+      ? (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0
+      : ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+  }
+
+  function readAscii(b, i, n) {
+    var s = '';
+    for (var k = 0; k < n && i + k < b.length; k++) {
+      var c = b[i + k];
+      if (c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s.replace(/\s+$/, '');
+  }
+
+  /** One TIFF IFD entry -> string, number or array (null when unreadable). */
+  function tiffValue(b, tiff, entry, little) {
+    var type = readU16(b, entry + 2, little);
+    var count = readU32(b, entry + 4, little);
+    var unit = TIFF_SIZES[type] || 1;
+    var total = unit * count;
+    var base = total <= 4 ? entry + 8 : tiff + readU32(b, entry + 8, little);
+    if (!count || !base || base + total > b.length) return null;
+    var out = [];
+    var i, n, d;
+    switch (type) {
+      case 2:
+        return readAscii(b, base, count);
+      case 1:
+      case 7:
+        if (count === 1) return b[base];
+        for (i = 0; i < count; i++) out.push(b[base + i]);
+        return out;
+      case 3:
+        if (count === 1) return readU16(b, base, little);
+        for (i = 0; i < count; i++) out.push(readU16(b, base + i * 2, little));
+        return out;
+      case 4:
+        if (count === 1) return readU32(b, base, little);
+        for (i = 0; i < count; i++) out.push(readU32(b, base + i * 4, little));
+        return out;
+      case 5:
+      case 10:
+        for (i = 0; i < count; i++) {
+          n = readU32(b, base + i * 8, little);
+          d = readU32(b, base + i * 8 + 4, little);
+          if (type === 10) { n = n | 0; d = d | 0; }
+          out.push(d === 0 ? 0 : n / d);
+        }
+        return count === 1 ? out[0] : out;
+      case 9:
+        if (count === 1) return readU32(b, base, little) | 0;
+        for (i = 0; i < count; i++) out.push(readU32(b, base + i * 4, little) | 0);
+        return out;
+      case 8:
+        if (count !== 1) return null;
+        var v = readU16(b, base, little);
+        return v > 0x7FFF ? v - 0x10000 : v;
+      default:
+        return null;
+    }
+  }
+
+  function gpsFromTags(tags) {
+    var present = Object.keys(tags).some(function (k) { return k !== '0'; });
+    if (!present) return null;
+
+    function degrees(v) {
+      if (typeof v === 'number') return v;
+      if (!v || !v.length || typeof v[0] !== 'number') return null;
+      return v[0] + (v[1] || 0) / 60 + (v[2] || 0) / 3600;
+    }
+
+    var lat = degrees(tags[2]);
+    var lon = degrees(tags[4]);
+    if (lat !== null && String(tags[1] || '').toUpperCase().indexOf('S') === 0) lat = -lat;
+    if (lon !== null && String(tags[3] || '').toUpperCase().indexOf('W') === 0) lon = -lon;
+    return { lat: lat, lon: lon };
+  }
+
+  /** Parse one TIFF/EXIF block (as found in JPEG APP1, PNG eXIf or WebP EXIF). */
+  function parseExif(b, start, meta) {
+    if (start < 0 || start + 8 > b.length) return false;
+    var little;
+    if (b[start] === 0x49 && b[start + 1] === 0x49) little = true;
+    else if (b[start] === 0x4D && b[start + 1] === 0x4D) little = false;
+    else return false;
+    if (readU16(b, start + 2, little) !== 0x2A) return false;
+    var ifd0Offset = readU32(b, start + 4, little);
+    if (!ifd0Offset || start + ifd0Offset + 2 > b.length) return false;
+
+    var seen = {};
+    function readIFD(offset) {
+      if (!offset || seen[offset] || start + offset + 2 > b.length) return null;
+      seen[offset] = true;
+      var p = start + offset;
+      var n = readU16(b, p, little);
+      var tags = {};
+      for (var i = 0; i < n; i++) {
+        var e = p + 2 + i * 12;
+        if (e + 12 > b.length) break;
+        meta.tagCount++;
+        var value = tiffValue(b, start, e, little);
+        if (value !== null) tags[readU16(b, e, little)] = value;
+      }
+      return { tags: tags, next: readU32(b, p + 2 + n * 12, little) };
+    }
+
+    var ifd0 = readIFD(ifd0Offset);
+    if (!ifd0) return false;
+    var main = ifd0.tags;
+    if (main[0x010F]) meta.make = String(main[0x010F]);
+    if (main[0x0110]) meta.model = String(main[0x0110]);
+    if (main[0x0112]) meta.orientation = Number(main[0x0112]) || 0;
+    if (main[0x0132]) meta.date = String(main[0x0132]);
+    if (main[0x0131]) meta.software = String(main[0x0131]);
+
+    if (main[0x8769]) {
+      var exifIFD = readIFD(main[0x8769]);
+      if (exifIFD) {
+        var t = exifIFD.tags;
+        if (t[0x9003] || t[0x9004]) meta.dateTaken = String(t[0x9003] || t[0x9004]);
+        if (t[0xA434]) meta.lens = String(t[0xA434]);
+        if (t[0x8827]) meta.iso = Number(t[0x8827]) || 0;
+        if (t[0x829D]) meta.fNumber = Number(t[0x829D]) || 0;
+        if (t[0x829A]) meta.exposure = Number(t[0x829A]) || 0;
+      }
+    }
+    if (main[0x8825]) {
+      var gpsIFD = readIFD(main[0x8825]);
+      if (gpsIFD) meta.gps = gpsFromTags(gpsIFD.tags);
+    }
+    if (ifd0.next) meta.hasThumbnail = true; // IFD1 holds the embedded preview
+    return true;
+  }
+
+  function parseJpeg(b, meta) {
+    var i = 2;
+    while (i + 4 <= b.length) {
+      if (b[i] !== 0xFF) { i++; continue; } // resync over padding
+      var marker = b[i + 1];
+      if (marker === 0xFF) { i++; continue; }
+      if (marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) { i += 2; continue; }
+      if (marker === 0xD9 || marker === 0xDA) break; // end of image / start of scan
+      var len = readU16(b, i + 2, false);
+      if (len < 2) break;
+      var p = i + 4;
+      if (marker === 0xE1 && readAscii(b, p, 4) === 'Exif') {
+        meta.hasExifBlock = true;
+        parseExif(b, p + 6, meta);
+      } else if (marker === 0xE1 && readAscii(b, p, 29).indexOf('http://ns.adobe.com/xap/1.0/') === 0) {
+        meta.hasXmp = true;
+      } else if (marker === 0xED && readAscii(b, p, 14).indexOf('Photoshop 3.0') === 0) {
+        meta.hasIptc = true;
+      }
+      i += 2 + len;
+    }
+  }
+
+  function parsePng(b, meta) {
+    var i = 8;
+    while (i + 8 <= b.length) {
+      var len = readU32(b, i, false);
+      if (len > b.length) break;
+      var type = readAscii(b, i + 4, 4);
+      if (type === 'eXIf') {
+        meta.hasExifBlock = true;
+        parseExif(b, i + 8, meta);
+      } else if (type === 'tEXt' || type === 'iTXt' || type === 'zTXt') {
+        meta.textChunks++;
+      } else if (type === 'IEND') {
+        break;
+      }
+      i += 12 + len;
+    }
+  }
+
+  function parseWebp(b, meta) {
+    var i = 12;
+    while (i + 8 <= b.length) {
+      var type = readAscii(b, i, 4);
+      var size = readU32(b, i + 4, true);
+      if (!size && !type) break;
+      if (size > b.length) break;
+      var p = i + 8;
+      if (type === 'EXIF') {
+        meta.hasExifBlock = true;
+        var start = p;
+        if (b[p] === 0x45 && b[p + 1] === 0x78 && b[p + 2] === 0x69 && b[p + 3] === 0x66) start += 6;
+        parseExif(b, start, meta);
+      } else if (type === 'XMP ') {
+        meta.hasXmp = true;
+      }
+      i = p + size + (size & 1);
+    }
+  }
+
+  function parseMetadata(b) {
+    var meta = {
+      format: '', supported: false, tagCount: 0, gps: null, make: '', model: '', lens: '',
+      date: '', dateTaken: '', orientation: 0, iso: 0, fNumber: 0, exposure: 0,
+      hasXmp: false, hasIptc: false, hasExifBlock: false, hasThumbnail: false, textChunks: 0
+    };
+    if (b.length > 3 && b[0] === 0xFF && b[1] === 0xD8) {
+      meta.format = 'JPEG';
+      meta.supported = true;
+      parseJpeg(b, meta);
+    } else if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) {
+      meta.format = 'PNG';
+      meta.supported = true;
+      parsePng(b, meta);
+    } else if (b.length > 12 && readAscii(b, 0, 4) === 'RIFF' && readAscii(b, 8, 4) === 'WEBP') {
+      meta.format = 'WebP';
+      meta.supported = true;
+      parseWebp(b, meta);
+    }
+    return meta;
+  }
+
+  function hasMeta(meta) {
+    return !!meta && meta.supported &&
+      (meta.tagCount > 0 || meta.hasXmp || meta.hasIptc || meta.hasExifBlock || meta.textChunks > 0);
+  }
+
+  function metaSummary(meta) {
+    var parts = [];
+    if (meta.tagCount) parts.push('EXIF: ' + meta.tagCount + ' tag' + (meta.tagCount === 1 ? '' : 's'));
+    if (meta.hasXmp) parts.push('XMP');
+    if (meta.hasIptc) parts.push('IPTC');
+    if (meta.textChunks) parts.push(meta.textChunks + ' text chunk' + (meta.textChunks === 1 ? '' : 's'));
+    if (!parts.length && meta.hasExifBlock) parts.push('EXIF block');
+    return parts.join(' · ');
+  }
+
+  function orientationText(value) {
+    switch (value) {
+      case 1: return 'Normal';
+      case 2: return 'Mirrored';
+      case 3: return 'Rotated 180°';
+      case 4: return 'Mirrored vertically';
+      case 5: return 'Mirrored and rotated 90°';
+      case 6: return 'Rotated 90° clockwise';
+      case 7: return 'Mirrored and rotated 270°';
+      case 8: return 'Rotated 270° clockwise';
+      default: return value ? 'Tag ' + value : '';
+    }
+  }
+
+  function exifDate(value) {
+    var m = /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2})/.exec(String(value || ''));
+    return m ? m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] : '';
+  }
+
+  function gpsText(gps) {
+    if (!gps) return '';
+    if (gps.lat === null || gps.lon === null) return 'Location data present (coordinates not readable)';
+    return Math.abs(gps.lat).toFixed(4) + '° ' + (gps.lat >= 0 ? 'N' : 'S') + ', ' +
+      Math.abs(gps.lon).toFixed(4) + '° ' + (gps.lon >= 0 ? 'E' : 'W');
+  }
+
+  function inspectFileMeta(item) {
+    var file = item.file;
+    if (!file) return;
+    var head = file.slice(0, Math.min(file.size, META_SCAN_LIMIT));
+    head.arrayBuffer().then(function (buf) {
+      item.meta = parseMetadata(new Uint8Array(buf));
+      updateCard(item);
+      updateChrome();
+    }).catch(function () {
+      item.meta = null;
+      updateCard(item);
+    });
+  }
+
+  /** Re-inspect what was actually encoded, so the strip is verified locally. */
+  function refreshMetaOut(item) {
+    var blob = item.blob;
+    if (!hasMeta(item.meta) || !blob) return;
+    blob.arrayBuffer().then(function (buf) {
+      if (item.blob !== blob || items.indexOf(item) === -1) return;
+      item.metaOut = parseMetadata(new Uint8Array(buf));
+      updateCard(item);
+    }).catch(function () { /* the badge simply stays unverified */ });
+  }
+
+  function renderMeta(item) {
+    var el = item.el && item.el.querySelector('.meta');
+    if (!el) return;
+    var meta = item.meta;
+    var wasOpen = !!el.querySelector('.meta-details[open]');
+    el.innerHTML = '';
+    if (!hasMeta(meta)) { el.hidden = true; return; }
+    if (item.status === 'error') { el.hidden = true; return; }
+
+    var tags = metaSummary(meta);
+    var out = item.metaOut;
+    var cleanOut = !!out && out.supported && !out.tagCount && !out.hasXmp && !out.hasIptc &&
+      !out.hasExifBlock && !out.textChunks;
+
+    el.hidden = false;
+    el.dataset.format = meta.format;
+    el.dataset.tags = String(meta.tagCount);
+    el.dataset.gps = meta.gps ? '1' : '0';
+    el.dataset.clean = cleanOut ? '1' : '0';
+
+    var icon = document.createElement('span');
+    icon.className = 'meta-icon';
+    icon.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 3l7 3v6c0 4.2-2.9 7.4-7 8.4C7.9 19.4 5 16.2 5 12V6l7-3Z"/></svg>';
+    el.appendChild(icon);
+
+    var line = document.createElement('span');
+    line.className = 'meta-line';
+    line.textContent = cleanOut ? tags + ' → 0 after convert' : tags;
+    el.appendChild(line);
+
+    if (meta.gps) {
+      var gpsBadge = document.createElement('span');
+      gpsBadge.className = 'badge ' + (cleanOut ? 'meta-safe' : 'meta-gps');
+      gpsBadge.textContent = cleanOut ? 'GPS stripped' : 'GPS location';
+      el.appendChild(gpsBadge);
+    }
+
+    var rows = [];
+    var camera = [meta.make, meta.model].filter(Boolean).join(' ');
+    if (meta.model && meta.make && meta.model.indexOf(meta.make) === 0) camera = meta.model;
+    if (camera) rows.push(['Camera', camera]);
+    if (meta.lens) rows.push(['Lens', meta.lens]);
+    var taken = exifDate(meta.dateTaken || meta.date);
+    if (taken) rows.push(['Taken', taken]);
+    var orientation = orientationText(meta.orientation);
+    if (orientation) rows.push(['Orientation', orientation]);
+    var settings = [];
+    if (meta.exposure) settings.push(meta.exposure < 1 ? '1/' + Math.round(1 / meta.exposure) + ' s' : meta.exposure + ' s');
+    if (meta.fNumber) settings.push('f/' + (Math.round(meta.fNumber * 10) / 10));
+    if (meta.iso) settings.push('ISO ' + meta.iso);
+    if (settings.length) rows.push(['Settings', settings.join(' · ')]);
+    var location = gpsText(meta.gps);
+    if (location) rows.push(['GPS', location]);
+    if (meta.hasThumbnail) rows.push(['Thumbnail', 'Embedded preview inside the file']);
+
+    if (rows.length) {
+      var details = document.createElement('details');
+      details.className = 'meta-details';
+      details.open = wasOpen;
+      var summary = document.createElement('summary');
+      summary.textContent = 'Show details';
+      details.appendChild(summary);
+      var dl = document.createElement('dl');
+      rows.forEach(function (row) {
+        var dt = document.createElement('dt');
+        dt.textContent = row[0];
+        var dd = document.createElement('dd');
+        dd.textContent = row[1];
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      });
+      details.appendChild(dl);
+      var note = document.createElement('p');
+      note.className = 'meta-note';
+      note.textContent = cleanOut
+        ? 'The converted file has no EXIF, GPS or XMP blocks — checked in your browser.'
+        : 'This is only read from the file on your device. Converting re-encodes the pixels, which drops all of it.';
+      details.appendChild(note);
+      el.appendChild(details);
+    }
+  }
 
   /* --------------------------------------------------------------- 4. Decoding */
 
@@ -441,6 +827,7 @@
 
     queue.forEach(function (i) {
       i.status = 'encoding';
+      i.metaOut = null;
       markBusy(i, true);
       // Never offer the previous format while the new one is being produced.
       var dl = i.el && i.el.querySelector('.dl-btn');
@@ -467,6 +854,7 @@
           item.error = '';
           markBusy(item, false);
           updateCard(item);
+          refreshMetaOut(item);
           done++;
           updateCountPill(done, queue.length);
           step(index + 1);
@@ -525,6 +913,7 @@
         '<div class="dims"></div>' +
         '<div class="sizes"><span class="size-before">—</span><span class="size-arrow" aria-hidden="true">→</span><span class="size-after">—</span></div>' +
         '<div class="badges"></div>' +
+        '<div class="meta" hidden></div>' +
         '<div class="card-actions">' +
           '<button class="dl-btn" type="button" disabled>' +
             '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>' +
@@ -577,6 +966,7 @@
       errEl.textContent = item.error;
       badges.appendChild(errEl);
       dl.disabled = true;
+      renderMeta(item);
       return;
     }
 
@@ -587,6 +977,7 @@
       afterEl.textContent = '—';
       badges.innerHTML = '';
       dl.disabled = true;
+      renderMeta(item);
       return;
     }
 
@@ -632,6 +1023,8 @@
       afterEl.textContent = item.status === 'encoding' ? 'encoding…' : '—';
       dl.disabled = true;
     }
+
+    renderMeta(item);
   }
 
   function markBusy(item, busy) {
@@ -721,6 +1114,31 @@
 
     var anyReady = done > 0;
     $('#downloadAll').disabled = !anyReady || encodingActive;
+
+    var metaEl = $('#sumMeta');
+    if (metaEl) {
+      var gpsCount = 0;
+      var tagged = 0;
+      items.forEach(function (i) {
+        if (!hasMeta(i.meta)) return;
+        tagged++;
+        if (i.meta.gps) gpsCount++;
+      });
+      if (!total) {
+        metaEl.hidden = true;
+      } else if (gpsCount) {
+        metaEl.hidden = false;
+        metaEl.textContent = 'GPS location in ' + gpsCount + ' of ' + total +
+          (total === 1 ? ' image' : ' images') + ' — stripped on convert';
+      } else if (tagged) {
+        metaEl.hidden = false;
+        metaEl.textContent = 'EXIF metadata in ' + tagged + ' of ' + total +
+          (total === 1 ? ' image' : ' images') + ' — stripped on convert';
+      } else {
+        metaEl.hidden = false;
+        metaEl.textContent = 'No EXIF or GPS metadata in these images';
+      }
+    }
     $('#downloadAllTop').disabled = !anyReady || encodingActive;
     $('#clearAll').disabled = total === 0;
 
